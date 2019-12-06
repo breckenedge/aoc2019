@@ -10,8 +10,10 @@ class IntcodeProgramInputSeeker
       this_program = program.clone
       this_program[1] = noun
       this_program[2] = verb
+      computer.load(this_program)
+      computer.execute
 
-      if computer.run(this_program) == goal
+      if computer.memory[0] == goal
         return [noun, verb]
       else
         next
