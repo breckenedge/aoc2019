@@ -14,13 +14,15 @@ class IntcodeComputer
   EQUALS = 8
   EXIT = 99
 
-  attr_accessor :memory, :pointer, :stdout, :stdin
+  attr_accessor :memory, :pointer, :stdout, :stdin, :waiting, :halted
 
   def initialize
     @memory = []
     @pointer = 0
     @stdout = []
     @stdin = []
+    @halted = false
+    @waiting = false
   end
 
   def load(program)
@@ -29,36 +31,42 @@ class IntcodeComputer
   end
 
   def execute(&each_step)
+    @waiting = false
+
     loop do
       yield if block_given?
-
-      intcode = extract_intcode(@memory[@pointer])
-
-      case intcode
-      when ADD
-        add
-      when MULTIPLY
-        multiply
-      when INPUT
-        input
-      when OUTPUT
-        output
-      when JUMP_IF_TRUE
-        jump_if_true
-      when JUMP_IF_FALSE
-        jump_if_false
-      when LESS_THAN
-        less_than
-      when EQUALS
-        equals
-      when EXIT
-        break
-      else
-        raise "Unknown INTCODE #{intcode}"
-      end
+      step
+      break if @waiting || @halted
     end
 
     @memory[0]
+  end
+
+  def step
+    intcode = extract_intcode(@memory[@pointer])
+
+    case intcode
+    when ADD
+      add
+    when MULTIPLY
+      multiply
+    when INPUT
+      input
+    when OUTPUT
+      output
+    when JUMP_IF_TRUE
+      jump_if_true
+    when JUMP_IF_FALSE
+      jump_if_false
+    when LESS_THAN
+      less_than
+    when EQUALS
+      equals
+    when EXIT
+      @halted = true
+    else
+      raise "Unknown INTCODE #{intcode}"
+    end
   end
 
   # 1
@@ -77,8 +85,12 @@ class IntcodeComputer
 
   # 3
   def input
-    @memory[@memory[@pointer + 1]] = @stdin.shift
-    @pointer += 2
+    if value = @stdin.shift
+      @memory[@memory[@pointer + 1]] = value
+      @pointer += 2
+    else
+      @waiting = true
+    end
   end
 
   # 4
@@ -157,6 +169,8 @@ class IntcodeComputer
         else
           output << address.to_s.rjust(longest, ' ')
         end
+
+        output << ' '
 
         index += 1
       end
