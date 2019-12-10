@@ -12,9 +12,13 @@ class IntcodeComputer
   JUMP_IF_FALSE = 6
   LESS_THAN = 7
   EQUALS = 8
+  BOOST = 9
   EXIT = 99
 
-  attr_accessor :memory, :pointer, :stdout, :stdin, :waiting, :halted
+  POSITION_MODE = 1
+  RELATIVE_MODE = 2
+
+  attr_accessor :memory, :pointer, :stdout, :stdin, :waiting, :halted, :relative_base
 
   def initialize
     @memory = []
@@ -23,6 +27,7 @@ class IntcodeComputer
     @stdin = []
     @halted = false
     @waiting = false
+    @relative_base = 0
   end
 
   def load(program)
@@ -62,6 +67,8 @@ class IntcodeComputer
       less_than
     when EQUALS
       equals
+    when BOOST
+      boost
     when EXIT
       @halted = true
     else
@@ -85,8 +92,10 @@ class IntcodeComputer
 
   # 3
   def input
+    a, b = extract_locations
+
     if value = @stdin.shift
-      @memory[@memory[@pointer + 1]] = value
+      @memory[a] = value
       @pointer += 2
     else
       @waiting = true
@@ -95,7 +104,9 @@ class IntcodeComputer
 
   # 4
   def output
-    @stdout << @memory[@memory[@pointer + 1]]
+    a, b = extract_parameters
+
+    @stdout << a
     @pointer += 2
   end
 
@@ -124,6 +135,7 @@ class IntcodeComputer
   # 7
   def less_than
     a, b = extract_parameters
+
     @memory[@memory[@pointer + 3]] = a < b ? 1 : 0
     @pointer += 4
   end
@@ -131,25 +143,39 @@ class IntcodeComputer
   # 8
   def equals
     a, b = extract_parameters
+
     @memory[@memory[@pointer + 3]] = a == b ? 1 : 0
     @pointer += 4
+  end
+
+  # 9
+  def boost
+    a, b = extract_parameters
+    @relative_base += a
+    @pointer += 2
   end
 
   def extract_intcode(intcode)
     intcode.digits.reverse.last(2).map(&:to_s).join.to_i
   end
 
-  def extract_parameters
-    digits = @memory[@pointer].to_s.rjust(5, '0').chars.map(&:to_i)
+  def extract_locations
+    digits = @memory[@pointer].to_s.rjust(4, '0').chars.map(&:to_i)
 
-    a = if digits[2] == 0
-          @memory[@memory[@pointer + 1]]
+    a = case digits[1]
+        when RELATIVE_MODE
+          @memory[@pointer + 1] + @relative_base
+        when POSITION_MODE
+          @pointer + 1
         else
           @memory[@pointer + 1]
         end
 
-    b = if digits[1] == 0
-          @memory[@memory[@pointer + 2]]
+    b = case digits[0]
+        when RELATIVE_MODE
+          @memory[@pointer + 2] + @relative_base
+        when POSITION_MODE
+          @pointer + 2
         else
           @memory[@pointer + 2]
         end
@@ -157,17 +183,23 @@ class IntcodeComputer
     [a, b]
   end
 
+  def extract_parameters
+    a, b = extract_locations
+
+    [@memory[a] || 0, @memory[b] || 0]
+  end
+
   def dump
-    longest = @memory.max.digits.size
+    longest = @memory.map { |addr| addr || 0 }.max.digits.size
     index = 0
     output = "\n"
 
     @memory.each_slice(15) do |page|
       page.each do |address|
         if index == @pointer
-          output << address.to_s.rjust(longest, ' ').red
+          output << address.to_i.to_s.rjust(longest, ' ').red
         else
-          output << address.to_s.rjust(longest, ' ')
+          output << address.to_i.to_s.rjust(longest, ' ')
         end
 
         output << ' '
