@@ -55,7 +55,7 @@ def main
   puts "Example Solution 3: #{solution_1(input_example_3)}"
 
   input = preprocess_input(INPUT)
-  #puts "Solution 1: #{solution_1(input)}"
+  puts "Solution 1: #{solution_1(input)}"
 
   puts "Solution 2: #{solution_2(input)}"
 

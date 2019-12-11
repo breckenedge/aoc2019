@@ -48,9 +48,7 @@ class IntcodeComputer
   end
 
   def step
-    intcode = extract_intcode(@memory[@pointer])
-
-    case intcode
+    case @memory[@pointer] % 100
     when ADD
       add
     when MULTIPLY
@@ -72,27 +70,52 @@ class IntcodeComputer
     when EXIT
       @halted = true
     else
-      raise "Unknown INTCODE #{intcode}"
+      raise "Unknown INTCODE #{@memory[@pointer]}"
+    end
+  end
+
+  def get_parameter(offset)
+    @memory[get_address(offset)] || 0
+  end
+
+  def get_address(offset)
+    intcode = @memory[@pointer]
+    digits = intcode.digits
+    mode = digits[1 + offset]
+
+    case mode
+    when POSITION_MODE
+      @pointer + offset
+    when RELATIVE_MODE
+      @memory[@pointer + offset] + @relative_base
+    else
+      @memory[@pointer + offset]
     end
   end
 
   # 1
   def add
-    a, b = extract_parameters
-    @memory[@memory[@pointer + 3]] = a + b
+    a = get_parameter(1)
+    b = get_parameter(2)
+    c = get_address(3)
+
+    @memory[c] = a + b
     @pointer += 4
   end
 
   # 2
   def multiply
-    a, b = extract_parameters
-    @memory[@memory[@pointer + 3]] = a * b
+    a = get_parameter(1)
+    b = get_parameter(2)
+    c = get_address(3)
+
+    @memory[c] = a * b
     @pointer += 4
   end
 
   # 3
   def input
-    a, b = extract_locations
+    a = get_address(1)
 
     if value = @stdin.shift
       @memory[a] = value
@@ -104,7 +127,7 @@ class IntcodeComputer
 
   # 4
   def output
-    a, b = extract_parameters
+    a = get_parameter(1)
 
     @stdout << a
     @pointer += 2
@@ -112,7 +135,8 @@ class IntcodeComputer
 
   # 5
   def jump_if_true
-    a, b = extract_parameters
+    a = get_parameter(1)
+    b = get_parameter(2)
 
     if a != 0
       @pointer = b
@@ -123,7 +147,8 @@ class IntcodeComputer
 
   # 6
   def jump_if_false
-    a, b = extract_parameters
+    a = get_parameter(1)
+    b = get_parameter(2)
 
     if a == 0
       @pointer = b
@@ -134,59 +159,30 @@ class IntcodeComputer
 
   # 7
   def less_than
-    a, b = extract_parameters
+    a = get_parameter(1)
+    b = get_parameter(2)
+    c = get_address(3)
 
-    @memory[@memory[@pointer + 3]] = a < b ? 1 : 0
+    @memory[c] = a < b ? 1 : 0
     @pointer += 4
   end
 
   # 8
   def equals
-    a, b = extract_parameters
+    a = get_parameter(1)
+    b = get_parameter(2)
+    c = get_address(3)
 
-    @memory[@memory[@pointer + 3]] = a == b ? 1 : 0
+    @memory[c] = a == b ? 1 : 0
     @pointer += 4
   end
 
   # 9
   def boost
-    a, b = extract_parameters
+    a = get_parameter(1)
+
     @relative_base += a
     @pointer += 2
-  end
-
-  def extract_intcode(intcode)
-    intcode.digits.reverse.last(2).map(&:to_s).join.to_i
-  end
-
-  def extract_locations
-    digits = @memory[@pointer].to_s.rjust(4, '0').chars.map(&:to_i)
-
-    a = case digits[1]
-        when RELATIVE_MODE
-          @memory[@pointer + 1] + @relative_base
-        when POSITION_MODE
-          @pointer + 1
-        else
-          @memory[@pointer + 1]
-        end
-
-    b = case digits[0]
-        when RELATIVE_MODE
-          @memory[@pointer + 2] + @relative_base
-        when POSITION_MODE
-          @pointer + 2
-        else
-          @memory[@pointer + 2]
-        end
-
-    [a, b]
-  end
-
-  def extract_parameters
-    a, b = extract_locations
-
-    [@memory[a] || 0, @memory[b] || 0]
   end
 
   def dump
