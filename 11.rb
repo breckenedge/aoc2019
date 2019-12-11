@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 
-require './intcode_computer.rb'
+require './intcode_robot.rb'
 
 # Advent of Code template in the Ruby programming language
 
@@ -8,79 +8,27 @@ def preprocess_input(input)
   input.split(',').map(&:to_i)
 end
 
-DIRECTIONS = [
-  [0, -1], # up
-  [1, 0], # left
-  [0, 1],  # down
-  [-1, 0]   # right
-]
-
 def solution_1(input)
-  whites = []
-  robot = [0, 0]
-  direction = 0
-  computer = IntcodeComputer.new
-  computer.load(input)
-  painted = []
-
-  loop do
-    computer.stdin << (whites.include?(robot) ? 1 : 0)
-    computer.execute
-    color, turn = computer.stdout.shift(2)
-
-    if color == 1
-      whites << robot.clone
-    else # paint black
-      whites.reject! { |w| w == robot }
-    end
-
-    # turn 0 = left, 1 = right
-
-    direction = (direction + (turn == 0 ? -1 : 1)) % 4
-
-    robot[0] += DIRECTIONS[direction][0]
-    robot[1] += DIRECTIONS[direction][1]
-
-    painted << robot.clone unless painted.include?(robot)
-
-    break if computer.halted
-  end
-
-  painted.count
+  robot = IntcodeRobot.new(input)
+  robot.execute
+  robot.painted.count
 end
 
 def solution_2(input)
-  whites = [[0, 0]]
-  robot = [0, 0]
-  direction = 0
-  computer = IntcodeComputer.new
-  computer.load(input)
+  robot = IntcodeRobot.new(input, whites: [[0, 0]])
+  robot.execute
+  render(robot.whites)
+end
 
-  while !computer.halted do
-    computer.stdin << (whites.include?(robot) ? 1 : 0)
-    computer.execute
-    color, turn = computer.stdout.shift(2)
-
-    if color == 1
-      whites << robot.clone
-    else # paint black
-      whites.reject! { |w| w == robot }
-    end
-
-    direction = (direction + (turn == 0 ? -1 : 1)) % 4
-
-    robot[0] += DIRECTIONS[direction][0]
-    robot[1] += DIRECTIONS[direction][1]
-  end
-
-  min_x, max_x = whites.map(&:first).minmax
-  min_y, max_y = whites.map(&:last).minmax
-
+def render(pixels)
   registration = "\n"
+
+  min_x, max_x = pixels.map(&:first).minmax
+  min_y, max_y = pixels.map(&:last).minmax
 
   (min_y..max_y).each do |y|
     (min_x..max_x).each do |x|
-      if whites.include?([x, y])
+      if pixels.include?([x, y])
         registration << '#'
       else
         registration << ' '

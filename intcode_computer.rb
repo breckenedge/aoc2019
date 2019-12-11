@@ -3,30 +3,14 @@
 require 'colorize'
 
 class IntcodeComputer
-  # INTCODEs
-  ADD = 1
-  MULTIPLY = 2
-  INPUT = 3
-  OUTPUT = 4
-  JUMP_IF_TRUE = 5
-  JUMP_IF_FALSE = 6
-  LESS_THAN = 7
-  EQUALS = 8
-  BOOST = 9
-  EXIT = 99
-
-  POSITION_MODE = 1
-  RELATIVE_MODE = 2
-
-  attr_accessor :memory, :pointer, :stdout, :stdin, :waiting, :halted, :relative_base
+  attr_accessor :memory, :pointer, :stdout, :stdin, :state, :relative_base
 
   def initialize
     @memory = []
     @pointer = 0
     @stdout = []
     @stdin = []
-    @halted = false
-    @waiting = false
+    @state = :initialize
     @relative_base = 0
   end
 
@@ -35,13 +19,21 @@ class IntcodeComputer
     @pointer = 0
   end
 
+  def waiting?
+    @state == :waiting
+  end
+
+  def finished?
+    @state == :finished
+  end
+
   def execute(&each_step)
-    @waiting = false
+    @state = :processing
 
     loop do
       yield if block_given?
       step
-      break if @waiting || @halted
+      break if @state == :waiting || @state == :finished
     end
 
     @memory[0]
@@ -49,26 +41,73 @@ class IntcodeComputer
 
   def step
     case @memory[@pointer] % 100
-    when ADD
-      add
-    when MULTIPLY
-      multiply
-    when INPUT
-      input
-    when OUTPUT
-      output
-    when JUMP_IF_TRUE
-      jump_if_true
-    when JUMP_IF_FALSE
-      jump_if_false
-    when LESS_THAN
-      less_than
-    when EQUALS
-      equals
-    when BOOST
-      boost
-    when EXIT
-      @halted = true
+    when 1 # ADD
+      a = get_parameter(1)
+      b = get_parameter(2)
+      c = get_address(3)
+
+      @memory[c] = a + b
+      @pointer += 4
+    when 2 # MULTIPLY
+      a = get_parameter(1)
+      b = get_parameter(2)
+      c = get_address(3)
+
+      @memory[c] = a * b
+      @pointer += 4
+    when 3 # INPUT
+      a = get_address(1)
+
+      if (value = @stdin.shift)
+        @memory[a] = value
+        @pointer += 2
+      else
+        @state = :waiting
+      end
+    when 4 # OUTPUT
+      a = get_parameter(1)
+
+      @stdout << a
+      @pointer += 2
+    when 5 # JUMP_IF_TRUE
+      a = get_parameter(1)
+      b = get_parameter(2)
+
+      if a != 0
+        @pointer = b
+      else
+        @pointer += 3
+      end
+    when 6 # JUMP_IF_FALSE
+      a = get_parameter(1)
+      b = get_parameter(2)
+
+      if a == 0
+        @pointer = b
+      else
+        @pointer += 3
+      end
+    when 7 # LESS_THAN
+      a = get_parameter(1)
+      b = get_parameter(2)
+      c = get_address(3)
+
+      @memory[c] = a < b ? 1 : 0
+      @pointer += 4
+    when 8 # EQUALS
+      a = get_parameter(1)
+      b = get_parameter(2)
+      c = get_address(3)
+
+      @memory[c] = a == b ? 1 : 0
+      @pointer += 4
+    when 9 # BOOST
+      a = get_parameter(1)
+
+      @relative_base += a
+      @pointer += 2
+    when 99 # EXIT
+      @state = :finished
     else
       raise "Unknown INTCODE #{@memory[@pointer]}"
     end
@@ -80,109 +119,16 @@ class IntcodeComputer
 
   def get_address(offset)
     intcode = @memory[@pointer]
-    digits = intcode.digits
-    mode = digits[1 + offset]
+    mode = (intcode / (10 ** (offset + 1))) % 10
 
     case mode
-    when POSITION_MODE
+    when 1 # POSITION_MODE
       @pointer + offset
-    when RELATIVE_MODE
+    when 2 # RELATIVE_MODE
       @memory[@pointer + offset] + @relative_base
     else
       @memory[@pointer + offset]
     end
-  end
-
-  # 1
-  def add
-    a = get_parameter(1)
-    b = get_parameter(2)
-    c = get_address(3)
-
-    @memory[c] = a + b
-    @pointer += 4
-  end
-
-  # 2
-  def multiply
-    a = get_parameter(1)
-    b = get_parameter(2)
-    c = get_address(3)
-
-    @memory[c] = a * b
-    @pointer += 4
-  end
-
-  # 3
-  def input
-    a = get_address(1)
-
-    if value = @stdin.shift
-      @memory[a] = value
-      @pointer += 2
-    else
-      @waiting = true
-    end
-  end
-
-  # 4
-  def output
-    a = get_parameter(1)
-
-    @stdout << a
-    @pointer += 2
-  end
-
-  # 5
-  def jump_if_true
-    a = get_parameter(1)
-    b = get_parameter(2)
-
-    if a != 0
-      @pointer = b
-    else
-      @pointer += 3
-    end
-  end
-
-  # 6
-  def jump_if_false
-    a = get_parameter(1)
-    b = get_parameter(2)
-
-    if a == 0
-      @pointer = b
-    else
-      @pointer += 3
-    end
-  end
-
-  # 7
-  def less_than
-    a = get_parameter(1)
-    b = get_parameter(2)
-    c = get_address(3)
-
-    @memory[c] = a < b ? 1 : 0
-    @pointer += 4
-  end
-
-  # 8
-  def equals
-    a = get_parameter(1)
-    b = get_parameter(2)
-    c = get_address(3)
-
-    @memory[c] = a == b ? 1 : 0
-    @pointer += 4
-  end
-
-  # 9
-  def boost
-    a = get_parameter(1)
-
-    @relative_base += a
-    @pointer += 2
   end
 
   def dump

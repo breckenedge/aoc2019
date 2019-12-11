@@ -54,7 +54,7 @@ def solution_2(input)
         end
       end
 
-      break if computers.none?(&:waiting)
+      break if computers.none?(&:waiting?)
     end
 
     outputs.last.last
