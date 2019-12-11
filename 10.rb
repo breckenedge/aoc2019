@@ -19,12 +19,85 @@ def solution_1(input)
         count += get_slopes_in_quadrant(input, x, y, quadrant).count
       end
 
-      counts[count] << [[x, y]]
+      counts[count] << [x, y]
     end
   end
 
   counts.max
 end
+
+# NOTE: This is buggy
+def solution_2(input)
+  center = solution_1(input)[1][0]
+  input[center[1]][center[0]] = 'O'
+  quadrant = 0
+  count = 0
+  slopes = []
+  astroid = nil
+
+  loop do
+    if slopes.empty?
+      quadrant = (quadrant + 1) % 4
+
+      # This is buggy for slopes like 1/0 or 0/1 in some quadrants.
+      slopes = get_slopes_in_quadrant(input, center[0], center[1], quadrant).sort_by { |point|
+        case quadrant
+        when 1, 3
+          point[1].to_f / point[0]
+        else
+          point[0].to_f / point[1]
+        end
+      }
+    end
+
+    slope = slopes.pop
+    astroid = first_astroid_on_slope(input, center[0], center[1], slope, quadrant)
+    input[astroid[1]][astroid[0]] = '.'
+
+    puts "Quadrant: #{quadrant}"
+    puts input
+    puts
+    sleep 0.01
+
+    count += 1
+
+    break if count == 200
+  end
+
+  astroid[0] * 100 + astroid[1]
+end
+
+def first_astroid_on_slope(input, x, y, slope, quadrant)
+  curr_x = x
+  curr_y = y
+
+  loop do
+    case quadrant
+    when 0
+      curr_x = curr_x - slope[0]
+      curr_y = curr_y - slope[1]
+    when 1
+      curr_x = curr_x + slope[0]
+      curr_y = curr_y - slope[1]
+    when 2
+      curr_x = curr_x + slope[0]
+      curr_y = curr_y + slope[1]
+    when 3
+      curr_x = curr_x - slope[0]
+      curr_y = curr_y + slope[1]
+    end
+
+    if input[curr_y][curr_x] != '.'
+      return [curr_x, curr_y]
+    end
+  end
+end
+
+# Quadrants:
+#
+# 3|0
+# -+-
+# 2|1
 
 def get_slopes_in_quadrant(input, x, y, quadrant)
   slopes = []
@@ -47,33 +120,24 @@ def get_slopes_in_quadrant(input, x, y, quadrant)
 
       if y - curr_y == 0
         if x > curr_x
-          slopes << [1, 0]
+          slopes << [1, 0] # Right
         else
-          slopes << [-1, 0]
+          slopes << [-1, 0] # Left
         end
       elsif x - curr_x == 0
         if y > curr_y
-          slopes << [0, 1]
+          slopes << [0, 1] # Up
         else
-          slopes << [0, -1]
+          slopes << [0, -1] # Down
         end
       else
-        slopes << Rational(x - curr_x, y - curr_y)
+        rational = Rational(x - curr_x, y - curr_y)
+        slopes << [rational.numerator.abs, rational.denominator.abs]
       end
     end
   end
 
   slopes.uniq
-end
-
-def solution_2(input)
-  lazer = solution_1(input)[1]
-
-  200.times do |i|
-    0.upto(3).each do |quadrant|
-      get_slopes_in_quadrant(input, lazer[0], lazer[1], quadrant)
-    end
-  end
 end
 
 INPUT = <<~EOS
