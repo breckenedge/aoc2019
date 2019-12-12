@@ -1,7 +1,5 @@
 #!/usr/bin/ruby
 
-# Advent of Code template in the Ruby programming language
-
 def preprocess_input(input)
   input.split("\n").map do |line|
     x, y, z = line.gsub!('<', '').gsub!('>', '').split(',').map { |param| param.split('=').last.to_i }
@@ -9,78 +7,64 @@ def preprocess_input(input)
   end
 end
 
+def tick(moons)
+  [:x, :y, :z].each do |axis|
+    tick_axis(moons, axis)
+  end
+end
+
+def tick_axis(moons, axis)
+  pairs = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]]
+
+  # Apply gravity
+  pairs.each do |pair|
+    a = moons[pair[0]]
+    b = moons[pair[1]]
+
+    if a.send(axis) > b.send(axis)
+      a.send("v#{axis}=".to_sym, a.send("v#{axis}") - 1)
+      b.send("v#{axis}=".to_sym, b.send("v#{axis}") + 1)
+    elsif a.send(axis) < b.send(axis)
+      a.send("v#{axis}=".to_sym, a.send("v#{axis}") + 1)
+      b.send("v#{axis}=".to_sym, b.send("v#{axis}") - 1)
+    end
+  end
+
+  moons.each do |moon|
+    moon.send("#{axis}=", moon.send(axis) + moon.send("v#{axis}"))
+  end
+end
+
+def get_axis_cycle(moons, axis)
+  original = moons.map { |m| [m.send(axis), m.send("v#{axis}")] }
+  count = 0
+
+  loop do
+    tick_axis(moons, axis)
+    count += 1
+
+    return count if original == moons.map { |m| [m.send(axis), m.send("v#{axis}")] }
+  end
+end
+
 def solution_1(moons, steps = 1000)
   steps.times.each do
-    pairs = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]]
-
-    # Apply gravity
-    pairs.each do |pair|
-      a = moons[pair[0]]
-      b = moons[pair[1]]
-
-      [:x, :y, :z].each do |pos|
-
-        if a.send(pos) > b.send(pos)
-          a.send("v#{pos}=".to_sym, a.send("v#{pos}") - 1)
-          b.send("v#{pos}=".to_sym, b.send("v#{pos}") + 1)
-        elsif a.send(pos) < b.send(pos)
-          a.send("v#{pos}=".to_sym, a.send("v#{pos}") + 1)
-          b.send("v#{pos}=".to_sym, b.send("v#{pos}") - 1)
-        else
-        end
-      end
-    end
-
-    # Apply velocity
-    moons.each do |moon|
-      moon.x += moon.vx
-      moon.y += moon.vy
-      moon.z += moon.vz
-    end
+    tick(moons)
   end
 
   moons.sum(&:total_energy)
 end
 
 def solution_2(moons)
-  visited = [moons.to_s]
+  ticks = 0
+  initial_positions = moons.map { |m| [m.x, m.y, m.z] }
+  initial_velocities = moons.map { |m| [m.vx, m.vy, m.vz] }
 
-  loop do
-    pairs = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]]
+  x_cycle = get_axis_cycle(moons, :x)
+  y_cycle = get_axis_cycle(moons, :y)
+  z_cycle = get_axis_cycle(moons, :z)
 
-    # Apply gravity
-    pairs.each do |pair|
-      a = moons[pair[0]]
-      b = moons[pair[1]]
-
-      [:x, :y, :z].each do |pos|
-
-        if a.send(pos) > b.send(pos)
-          a.send("v#{pos}=".to_sym, a.send("v#{pos}") - 1)
-          b.send("v#{pos}=".to_sym, b.send("v#{pos}") + 1)
-        elsif a.send(pos) < b.send(pos)
-          a.send("v#{pos}=".to_sym, a.send("v#{pos}") + 1)
-          b.send("v#{pos}=".to_sym, b.send("v#{pos}") - 1)
-        else
-        end
-      end
-    end
-
-    # Apply velocity
-    moons.each do |moon|
-      moon.x += moon.vx
-      moon.y += moon.vy
-      moon.z += moon.vz
-    end
-
-    if visited.include?(moons.to_s)
-      break
-    else
-      visited << moons.to_s
-    end
-  end
-
-  visited.count
+  [x_cycle, y_cycle, z_cycle].reduce(:lcm)
 end
 
 class Moon
@@ -148,7 +132,10 @@ def main
   puts "Solution 1: #{solution_1(input)}"
 
   input_example_2 = preprocess_input(INPUT_EXAMPLE_2)
-  puts "Example Solution 2: #{solution_2(input_example_1)}"
+  puts "Example 1 Solution 2: #{solution_2(input_example_1)}"
+
+  input_example_2 = preprocess_input(INPUT_EXAMPLE_2)
+  puts "Example 2 Solution 2: #{solution_2(input_example_2)}"
 
   puts "Solution 2: #{solution_2(input)}"
 end
