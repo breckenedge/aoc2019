@@ -54,10 +54,10 @@ def solution_2(input)
     astroid = first_astroid_on_slope(input, center[0], center[1], slope, quadrant)
     input[astroid[1]][astroid[0]] = '.'
 
-    puts "Quadrant: #{quadrant}"
-    puts input
-    puts
-    sleep 0.01
+    #puts "Quadrant: #{quadrant}"
+    #puts input
+    #puts
+    #sleep 0.01
 
     count += 1
 
@@ -200,6 +200,13 @@ INPUT_EXAMPLE_2 = <<~EOS
 .####.###.
 EOS
 
+INPUT_EXAMPLE_3 = <<~EOS
+#####
+#####
+#####
+#####
+EOS
+
 def main
   input_example_0 = preprocess_input(INPUT_EXAMPLE_0)
   puts "Example Solution 0: #{solution_1(input_example_0)}"
@@ -209,6 +216,9 @@ def main
 
   input_example_2 = preprocess_input(INPUT_EXAMPLE_2)
   puts "Example Solution 2: #{solution_1(input_example_2)}"
+
+  input_example_3 = preprocess_input(INPUT_EXAMPLE_3)
+  puts "Example Solution 3: #{solution_1(input_example_3)}"
 
   input = preprocess_input(INPUT)
   puts "Solution 1: #{solution_1(input)}"
